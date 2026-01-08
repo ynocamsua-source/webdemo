@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Resizable Split View</title>
+
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Panels */
+.panel {
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.upper {
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.lower {
+  background: #fff;
+}
+
+/* Splitter */
+.splitter {
+  height: 6px;
+  background: #ccc;
+  cursor: row-resize;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 4px;
+}
+
+button {
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* Canvas */
+.canvas-wrapper {
+  border: 2px dashed #aaa;
+  padding: 10px;
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+canvas {
+  max-width: 100%;
+}
+
+/* Iframe */
+iframe {
+  width: 100%;
+  height: calc(100% - 40px);
+  border: 1px solid #ccc;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container" id="container">
+
+  <!-- UPPER PANEL -->
+  <div class="panel upper" id="upperPanel" style="height:50%;">
+    <div class="controls">
+      <input type="file" id="imageInput" accept="image/*">
+      <button onclick="clearCanvas()">Clear Upper</button>
+      <span>Paste (Ctrl+V) or Drag & Drop Image</span>
+    </div>
+
+    <div class="canvas-wrapper" id="dropZone">
+      <canvas id="imageCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- SPLITTER -->
+  <div class="splitter" id="splitter"></div>
+
+  <!-- LOWER PANEL -->
+  <div class="panel lower" id="lowerPanel" style="height:50%;">
+    <div class="controls">
+      <input type="text" id="urlInput" placeholder="Enter URL">
+      <button onclick="loadUrl()">Go</button>
+      <button onclick="clearIframe()">Clear Lower</button>
+    </div>
+    <iframe id="iframeView"></iframe>
+  </div>
+
+</div>
+
+<script>
+/* ---------------- CANVAS IMAGE HANDLING ---------------- */
+
+const canvas = document.getElementById("imageCanvas");
+const ctx = canvas.getContext("2d");
+const dropZone = document.getElementById("dropZone");
+
+function drawImage(img) {
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+}
+
+function loadImageFromFile(file) {
+  const img = new Image();
+  img.onload = () => drawImage(img);
+  img.src = URL.createObjectURL(file);
+}
+
+// File input
+document.getElementById("imageInput").addEventListener("change", e => {
+  if (e.target.files[0]) {
+    loadImageFromFile(e.target.files[0]);
+  }
+});
+
+// Clipboard paste
+document.addEventListener("paste", e => {
+  for (const item of e.clipboardData.items) {
+    if (item.type.startsWith("image/")) {
+      loadImageFromFile(item.getAsFile());
+    }
+  }
+});
+
+// Drag & Drop
+dropZone.addEventListener("dragover", e => {
+  e.preventDefault();
+  dropZone.style.borderColor = "#000";
+});
+
+dropZone.addEventListener("dragleave", () => {
+  dropZone.style.borderColor = "#aaa";
+});
+
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.style.borderColor = "#aaa";
+  if (e.dataTransfer.files[0]) {
+    loadImageFromFile(e.dataTransfer.files[0]);
+  }
+});
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.width = 0;
+  canvas.height = 0;
+  document.getElementById("imageInput").value = "";
+}
+
+/* ---------------- IFRAME HANDLING ---------------- */
+
+function loadUrl() {
+  let url = document.getElementById("urlInput").value.trim();
+  if (!url) return;
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+  }
+  document.getElementById("iframeView").src = url;
+}
+
+function clearIframe() {
+  document.getElementById("iframeView").src = "";
+  document.getElementById("urlInput").value = "";
+}
+
+/* ---------------- RESIZABLE SPLITTER ---------------- */
+
+const splitter = document.getElementById("splitter");
+const upper = document.getElementById("upperPanel");
+const lower = document.getElementById("lowerPanel");
+const container = document.getElementById("container");
+
+let isDragging = false;
+
+splitter.addEventListener("mousedown", () => {
+  isDragging = true;
+  document.body.style.cursor = "row-resize";
+});
+
+document.addEventListener("mousemove", e => {
+  if (!isDragging) return;
+
+  const rect = container.getBoundingClientRect();
+  const offsetY = e.clientY - rect.top;
+
+  const minHeight = 100;
+  const maxHeight = rect.height - minHeight;
+
+  if (offsetY > minHeight && offsetY < maxHeight) {
+    upper.style.height = offsetY + "px";
+    lower.style.height = (rect.height - offsetY - splitter.offsetHeight) + "px";
+  }
+});
+
+document.addEventListener("mouseup", () => {
+  isDragging = false;
+  document.body.style.cursor = "default";
+});
+</script>
+
+</body>
+</html>
